@@ -1,0 +1,41 @@
+<%- include('./include/_header') %>
+<main class="container page narrow">
+  <div class="section-heading"><div><p class="eyebrow">ACCOUNT SECURITY</p><h1>암호화 키 설정</h1></div></div>
+  <div class="notice">기존 계정을 위한 초기 설정입니다. 개인키는 이 브라우저에 저장하고 백업 파일로 내려받습니다. 개인키 파일을 잃으면 암호화된 상세 내용을 복구할 수 없습니다.</div>
+  <div class="panel form-stack">
+    <button class="button primary" id="create-key">키 생성 및 등록</button>
+    <p id="key-status" class="muted" aria-live="polite"></p>
+  </div>
+</main>
+<script src="/js/idea-crypto.js"></script>
+<script>
+document.getElementById("create-key").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  const status = document.getElementById("key-status");
+  button.disabled = true;
+  try {
+    const pair = await window.IdeaCrypto.createKeyPair();
+    const publicKey = await window.IdeaCrypto.exportKey(pair.publicKey);
+    const privateKey = await window.IdeaCrypto.exportKey(pair.privateKey);
+    const response = await fetch("/ideas/account/key", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ publicKey: JSON.stringify(publicKey) })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const username = <%- JSON.stringify(currentUser.username).replace(/</g, "\\u003c") %>;
+    window.IdeaCrypto.savePrivateKey(username, privateKey);
+    const file = new Blob([JSON.stringify({ username, privateKey }, null, 2)], { type: "application/json" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(file);
+    link.download = `idea-vault-key-${username}.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    window.location.href = <%- JSON.stringify(currentUser.role === "admin" ? "/ideas/admin" : "/ideas/new") %>;
+  } catch (error) {
+    status.textContent = error.message;
+    button.disabled = false;
+  }
+});
+</script>
+<%- include('./include/_footer') %>

@@ -1,0 +1,52 @@
+<%- include('./include/_header') %>
+<main class="container page narrow">
+  <div class="section-heading"><div><p class="eyebrow">ONE-TIME SETUP</p><h1>관리자 계정 설정</h1></div></div>
+  <% if (configured) { %>
+    <p class="notice">관리자 설정 키가 서버에 구성되어 있습니다. 초기 관리자 한 명만 등록할 수 있습니다.</p>
+    <form class="panel form-stack" id="admin-setup-form" method="post" action="/admin/setup">
+      <label>관리자 설정 키<input type="password" name="setupKey" required></label>
+      <label>관리자 아이디<input name="username" maxlength="40" required></label>
+      <label>비밀번호 (10자 이상)<input type="password" name="password" minlength="10" required></label>
+      <button class="button primary">관리자 계정 만들기</button>
+      <p class="muted" id="setup-status" aria-live="polite"></p>
+    </form>
+  <% } else { %><p class="notice">관리자 등록을 위해 서버 환경 변수 ADMIN_SETUP_KEY를 설정해야 합니다.</p><% } %>
+</main>
+<% if (configured) { %>
+  <script src="/js/idea-crypto.js"></script>
+  <script>
+  document.getElementById("admin-setup-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const status = document.getElementById("setup-status");
+    try {
+      const pair = await window.IdeaCrypto.createKeyPair();
+      const publicKey = await window.IdeaCrypto.exportKey(pair.publicKey);
+      const privateKey = await window.IdeaCrypto.exportKey(pair.privateKey);
+      const username = form.elements.username.value.trim();
+      const response = await fetch(form.action, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          setupKey: form.elements.setupKey.value,
+          username,
+          password: form.elements.password.value,
+          publicKey: JSON.stringify(publicKey)
+        })
+      });
+      if (!response.ok) throw new Error(await response.text());
+      window.IdeaCrypto.savePrivateKey(username, privateKey);
+      const file = new Blob([JSON.stringify({ username, privateKey }, null, 2)], { type: "application/json" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(file);
+      link.download = `idea-vault-key-${username}.json`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      window.location.href = "/ideas/admin";
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
+  </script>
+<% } %>
+<%- include('./include/_footer') %>

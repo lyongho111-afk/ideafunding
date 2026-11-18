@@ -1,0 +1,57 @@
+<%- include('./include/_header') %>
+<main class="container page narrow">
+  <div class="section-heading"><div><p class="eyebrow">NEW PROPOSAL</p><h1>아이디어 제안</h1></div></div>
+  <% if (adminConfigured) { %>
+  <div class="notice">상세 내용 전체는 본인의 개인키로 암호화됩니다. 검수용으로 앞부분 약 50%만 관리자 공개키로 별도 암호화해 제출하며, 관리자는 이 미리보기를 확인한 뒤 게시 여부를 결정합니다.</div>
+  <form class="panel form-stack" id="idea-form" method="post" action="/ideas">
+    <label>아이디어 제목<input name="title" maxlength="100" required></label>
+    <label>카테고리<input name="category" maxlength="40" placeholder="예: 기후테크, 교육" required></label>
+    <label>공개 요약 <small>관리자와 모든 방문자에게 공개됩니다.</small><textarea name="summary" maxlength="600" rows="4" required></textarea></label>
+    <label>목표 모금액 (원)<input name="fundingGoal" type="number" min="1000" max="1000000000" step="1000" required></label>
+    <label>상세 아이디어 <small>전체 내용은 본인만 복호화할 수 있고, 앞부분 약 50%만 관리자 검수용으로 암호화해 전달합니다.</small><textarea id="details" rows="9" required></textarea></label>
+    <button class="button primary" type="submit">암호화하고 검수 요청</button>
+    <p id="form-status" class="muted" aria-live="polite"></p>
+  </form>
+  <% } else { %>
+    <p class="notice">아이디어를 등록하기 전에 관리자가 계정을 만들고 검수용 암호화 키를 설정해야 합니다.</p>
+  <% } %>
+</main>
+<script src="/js/idea-crypto.js"></script>
+<% if (adminConfigured) { %>
+<script>
+document.getElementById("idea-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const status = document.getElementById("form-status");
+  try {
+    const privateKey = window.IdeaCrypto.getPrivateKey(<%- JSON.stringify(currentUser.username).replace(/</g, "\\u003c") %>);
+    if (!privateKey) throw new Error("이 브라우저에서 개인키를 찾을 수 없습니다. 개인키 파일을 다른 브라우저에 가져오거나 다시 로그인해 주세요.");
+    const details = document.getElementById("details").value;
+    const characters = Array.from(details);
+    if (characters.length < 2) throw new Error("상세 내용은 2자 이상 입력해 주세요.");
+    const preview = characters.slice(0, Math.ceil(characters.length / 2)).join("");
+    const result = await window.IdeaCrypto.encrypt(details, JSON.parse(<%- JSON.stringify(publicKey).replace(/</g, "\\u003c") %>));
+    const review = await window.IdeaCrypto.encrypt(preview, JSON.parse(<%- JSON.stringify(adminPublicKey).replace(/</g, "\\u003c") %>));
+    status.textContent = "상세 내용을 암호화해 전송합니다...";
+    const response = await fetch(form.action, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: form.elements.title.value,
+        category: form.elements.category.value,
+        summary: form.elements.summary.value,
+        fundingGoal: form.elements.fundingGoal.value,
+        ...result,
+        reviewPreview: review.encryptedDetails,
+        reviewWrappedKey: review.wrappedKey
+      })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    window.location.href = "/ideas/my";
+  } catch (error) {
+    status.textContent = error.message;
+  }
+});
+</script>
+<% } %>
+<%- include('./include/_footer') %>

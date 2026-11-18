@@ -1,0 +1,25 @@
+<%- include('./include/_header') %>
+<main class="container page">
+  <section class="hero">
+    <p class="eyebrow">IDEA VAULT · PRIVATE BY DESIGN</p>
+    <h1>아이디어를 지키면서<br>가능성을 함께 키우세요.</h1>
+    <p>검수된 아이디어의 공개 요약을 확인하고, 목표 금액을 에스크로 예약한 뒤 질문과 상세 내용을 확인할 수 있습니다.</p>
+    <% if (currentUser) { %><a class="button primary" href="<%= currentUser.publicKey && currentUser.publicKey !== 'admin-no-encryption' ? '/ideas/new' : '/ideas/key-setup' %>"><%= currentUser.publicKey && currentUser.publicKey !== 'admin-no-encryption' ? '아이디어 제안하기' : '암호화 키 설정하기' %></a><% } else { %><a class="button primary" href="/register">무료로 시작하기</a><% } %>
+    <span class="notice">현재 데모는 실제 결제·자금 보관을 연결하지 않은 에스크로 예약 시뮬레이션입니다.</span>
+  </section>
+  <div class="section-heading"><div><p class="eyebrow">CURATED IDEAS</p><h2>검수 완료 아이디어</h2></div><span class="muted"><%= ideas.length %>개의 아이디어</span></div>
+  <section class="idea-grid">
+    <% if (ideas.length) { ideas.forEach((idea) => { %>
+      <article class="idea-card">
+        <div class="card-top"><span class="tag"><%= idea.category %></span><span class="status approved">검수 완료</span></div>
+        <h3><a href="/ideas/<%= idea.id %>"><%= idea.title %></a></h3>
+        <p><%= idea.summary %></p>
+        <div class="idea-meta"><span>제안자 <strong><%= idea.owner_name %></strong></span><span>현재 예약 <strong><%= Number(idea.pledged).toLocaleString('ko-KR') %>원</strong></span></div>
+        <div class="goal"><span>목표 <strong><%= Number(idea.funding_goal).toLocaleString('ko-KR') %>원</strong></span><a class="text-link" href="/ideas/<%= idea.id %>">자세히 보기 →</a></div>
+      </article>
+    <% }); } else { %>
+      <div class="empty-state"><h3>아직 공개된 아이디어가 없습니다</h3><p>첫 번째 아이디어를 제안해 주세요.</p></div>
+    <% } %>
+  </section>
+</main>
+<%- include('./include/_footer') %>

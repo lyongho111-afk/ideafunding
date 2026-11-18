@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>아이디어 펀딩</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="container header-container">
+      <nav>
+        <a href="/ideas" class="logo">IDEA VAULT</a>
+      </nav>
+      <div class="login-box">
+        <a href="/ideas">아이디어 둘러보기</a>
+        <% if (typeof currentUser !== "undefined" && currentUser) { %>
+          <a href="<%= currentUser.publicKey && currentUser.publicKey !== 'admin-no-encryption' ? '/ideas/new' : '/ideas/key-setup' %>"><%= currentUser.publicKey && currentUser.publicKey !== 'admin-no-encryption' ? '아이디어 등록' : '키 설정' %></a>
+          <a href="/ideas/my">내 아이디어</a>
+          <% if (currentUser.role === "admin") { %><a href="/ideas/admin">검수 대시보드</a><% } %>
+          <span><%= currentUser.username %>님</span>
+          <a href="/logout">로그아웃</a>
+        <% } else { %>
+          <a href="/login">로그인</a>
+          <a href="/register">회원가입</a>
+        <% } %>
+      </div>
+    </div>
+  </header>
+  <!-- /Header -->

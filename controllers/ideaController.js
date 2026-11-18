@@ -1,0 +1,189 @@
+const asyncHandler = require("express-async-handler");
+const jwt = require("jsonwebtoken");
+const path = require("node:path");
+const Idea = require("../models/ideaModel");
+const User = require("../models/userModel");
+require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
+const jwtSecret = process.env.JWT_SECRET;
+const parseId = (value) => (/^[1-9]\d*$/.test(String(value)) ? Number(value) : null);
+
+const attachCurrentUser = (req, res, next) => {
+  const token = req.cookies.token;
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, jwtSecret);
+      req.user = User.findById(decoded.id);
+    } catch (error) {
+      res.clearCookie("token");
+    }
+  }
+  res.locals.currentUser = req.user || null;
+  next();
+};
+
+const listIdeas = asyncHandler((req, res) => {
+  res.render("ideas", { ideas: Idea.listPublic() });
+});
+
+const newIdeaPage = asyncHandler((req, res) => {
+  if (!req.user.publicKey || req.user.publicKey === "admin-no-encryption") return res.redirect("/ideas/key-setup");
+  const admin = User.findAdmin();
+  return res.render("idea-new", {
+    publicKey: req.user.publicKey,
+    adminPublicKey: admin?.publicKey || null,
+    adminConfigured: Boolean(admin?.publicKey && admin.publicKey !== "admin-no-encryption"),
+  });
+});
+
+const keySetupPage = asyncHandler((req, res) => res.render("key-setup"));
+
+const saveAccountKey = asyncHandler((req, res) => {
+  const { publicKey } = req.body;
+  let parsedKey;
+  try {
+    parsedKey = JSON.parse(publicKey);
+  } catch (error) {
+    parsedKey = null;
+  }
+  if (!parsedKey || parsedKey.kty !== "RSA" || parsedKey.alg !== "RSA-OAEP-256" || publicKey.length > 5000) {
+    return res.status(400).send("유효한 RSA 공개키가 아닙니다.");
+  }
+  if (!User.updatePublicKeyIfUninitialized(req.user._id, publicKey)) {
+    return res.status(409).send("이미 암호화 키가 등록되어 있습니다.");
+  }
+  return res.status(201).json({ message: "암호화 키가 등록되었습니다." });
+});
+
+const createIdea = asyncHandler((req, res) => {
+  const { title, category, summary, fundingGoal, encryptedDetails, wrappedKey, reviewPreview, reviewWrappedKey } = req.body;
+  if (!req.user.publicKey) return res.status(409).send("아이디어 등록 전에 암호화 키를 설정해 주세요.");
+  const admin = User.findAdmin();
+  if (!admin?.publicKey || admin.publicKey === "admin-no-encryption") {
+    return res.status(503).send("관리자 계정과 검수용 암호화 키를 먼저 설정해 주세요.");
+  }
+  const goal = Number(fundingGoal);
+  if (!title?.trim() || title.length > 100 || !category?.trim() || category.length > 40 ||
+      !summary?.trim() || summary.length > 600 || !Number.isSafeInteger(goal) || goal < 1000 ||
+      goal > 1000000000 || !encryptedDetails || encryptedDetails.length > 90000 ||
+      !wrappedKey || wrappedKey.length > 2000 || !reviewPreview || reviewPreview.length > 50000 ||
+      !reviewWrappedKey || reviewWrappedKey.length > 2000) {
+    return res.status(400).send("입력 항목과 암호화된 상세 내용을 확인해 주세요.");
+  }
+  Idea.create({
+    ownerId: req.user._id,
+    title: title.trim(),
+    category: category.trim(),
+    summary: summary.trim(),
+    fundingGoal: goal,
+    encryptedDetails,
+    wrappedKey,
+    reviewPreview,
+    reviewWrappedKey,
+  });
+  return res.status(201).json({ message: "아이디어가 검수 대기 목록에 등록되었습니다." });
+});
+
+const myIdeas = asyncHandler((req, res) => {
+  res.render("my-ideas", { ideas: Idea.forOwner(req.user._id) });
+});
+
+const ideaPage = asyncHandler((req, res) => {
+  const id = parseId(req.params.id);
+  const idea = id && Idea.findById(id);
+  if (!idea || (idea.status !== "approved" && idea.owner_id !== req.user?._id)) {
+    return res.status(404).send("아이디어를 찾을 수 없습니다.");
+  }
+  const owner = req.user?._id === idea.owner_id;
+  const pledged = req.user ? Idea.hasHeldPledge(idea.id, req.user._id) : false;
+  const disclosure = pledged && !owner ? Idea.getDisclosure(idea.id, req.user._id) : null;
+  return res.render("idea-detail", {
+    idea,
+    owner,
+    pledged,
+    disclosure,
+    backers: owner ? Idea.backers(idea.id) : [],
+    questions: owner || pledged ? Idea.questions(idea.id) : [],
+  });
+});
+
+const pledge = asyncHandler((req, res) => {
+  const id = parseId(req.params.id);
+  const idea = id && Idea.findById(id);
+  const amount = Number(req.body.amount);
+  if (!idea || idea.status !== "approved") return res.status(404).send("공개된 아이디어를 찾을 수 없습니다.");
+  if (idea.owner_id === req.user._id) return res.status(400).send("본인의 아이디어에는 후원할 수 없습니다.");
+  if (!req.user.publicKey) return res.status(409).send("에스크로 예약 전에 암호화 키를 설정해 주세요.");
+  const minimumPledge = Math.ceil(idea.funding_goal / 20);
+  if (!Number.isSafeInteger(amount) || amount < minimumPledge || amount > 1000000000) {
+    return res.status(400).send("목표 모금액의 5% 이상, 10억원 이하 금액을 입력해 주세요.");
+  }
+  try {
+    Idea.createPledge(idea.id, req.user._id, amount);
+  } catch (error) {
+    if (error.code === "SQLITE_CONSTRAINT_UNIQUE") return res.status(409).send("이미 에스크로 예약이 있습니다.");
+    throw error;
+  }
+  return res.redirect(`/ideas/${idea.id}`);
+});
+
+const askQuestion = asyncHandler((req, res) => {
+  const id = parseId(req.params.id);
+  const idea = id && Idea.findById(id);
+  const question = req.body.question?.trim();
+  if (!idea || idea.status !== "approved" || !Idea.hasHeldPledge(idea.id, req.user._id)) {
+    return res.status(403).send("에스크로 예약이 확인된 후 질문할 수 있습니다.");
+  }
+  if (!question || question.length > 1000) return res.status(400).send("질문은 1~1,000자로 입력해 주세요.");
+  Idea.addQuestion(idea.id, req.user._id, question);
+  return res.redirect(`/ideas/${idea.id}`);
+});
+
+const answerQuestion = asyncHandler((req, res) => {
+  const ideaId = parseId(req.params.id);
+  const questionId = parseId(req.params.questionId);
+  const answer = req.body.answer?.trim();
+  if (!ideaId || !questionId || !answer || answer.length > 2000) return res.status(400).send("답변을 확인해 주세요.");
+  if (!Idea.answerQuestion(questionId, req.user._id, answer)) return res.status(404).send("답변할 질문을 찾을 수 없습니다.");
+  return res.redirect(`/ideas/${ideaId}`);
+});
+
+const disclose = asyncHandler((req, res) => {
+  const id = parseId(req.params.id);
+  const backerId = parseId(req.params.backerId);
+  const idea = id && Idea.findById(id);
+  const backer = backerId && Idea.backers(id).find((item) => item.backer_id === backerId);
+  const { encryptedDetails, wrappedKey } = req.body;
+  if (!idea || idea.owner_id !== req.user._id) return res.status(404).send("아이디어를 찾을 수 없습니다.");
+  if (!backer || !encryptedDetails || !wrappedKey) return res.status(400).send("에스크로 예약 또는 공개할 내용을 확인해 주세요.");
+  Idea.saveDisclosure(id, backerId, encryptedDetails, wrappedKey);
+  return res.status(201).json({ message: "상세 내용을 암호화해 공개했습니다." });
+});
+
+const adminDashboard = asyncHandler((req, res) => {
+  if (!req.user.publicKey || req.user.publicKey === "admin-no-encryption") return res.redirect("/ideas/key-setup");
+  return res.render("admin", { ideas: Idea.pending() });
+});
+
+const reviewIdea = asyncHandler((req, res) => {
+  const id = parseId(req.params.id);
+  const { decision } = req.body;
+  const idea = id && Idea.findById(id);
+  const goal = Number(req.body.fundingGoal);
+  if (!idea || idea.status !== "pending") return res.status(404).send("검수 대기 중인 아이디어를 찾을 수 없습니다.");
+  if (decision === "approved" && (!idea.review_preview || !idea.review_wrapped_key)) {
+    return res.status(409).send("검수용 상세 미리보기가 없어 승인할 수 없습니다.");
+  }
+  if (decision === "approved" && req.body.previewViewed !== "true") {
+    return res.status(400).send("상세 내용의 50% 미리보기를 확인한 뒤 승인해 주세요.");
+  }
+  if (!["approved", "rejected"].includes(decision) || !Number.isSafeInteger(goal) || goal < idea.funding_goal || goal > 1000000000) {
+    return res.status(400).send("게시 결정 또는 상향된 모금 목표를 확인해 주세요.");
+  }
+  Idea.review(id, decision, goal);
+  return res.redirect("/ideas/admin");
+});
+
+module.exports = {
+  attachCurrentUser, listIdeas, newIdeaPage, createIdea, myIdeas, ideaPage,
+  keySetupPage, saveAccountKey, pledge, askQuestion, answerQuestion, disclose, adminDashboard, reviewIdea,
+};
