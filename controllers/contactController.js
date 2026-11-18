@@ -1,6 +1,6 @@
 // 비동기 라우트에서 발생한 오류를 Express 오류 처리기로 전달하는 도구를 불러옵니다.
 const asyncHandler = require("express-async-handler");
-// 연락처 데이터 조회와 변경을 담당하는 모델을 불러옵니다.  DB관련 작업
+// 연락처 데이터 조회와 변경을 담당하는 모델을 불러옵니다.  DB관련작업
 const Contact = require("../models/contactModel");
 
 // @desc Get all contacts
