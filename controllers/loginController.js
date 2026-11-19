@@ -94,7 +94,7 @@ const loginUser = asyncHandler(async (req, res) => {
   const user = User.findOne({ username });
 
   // 사용자를 찾지 못하면 인증 실패 응답을 반환합니다.
-  if (!user) {
+  if (!user || user.account_type !== "local") {
     return res.status(401).json({ message: "일치하는 사용자가 없습니다." });
   }
 
@@ -140,23 +140,6 @@ const logout = (req, res) => {
 // 라우터에서 사용할 인증 관련 컨트롤러들을 내보냅니다.
 const getAdminSetup = (req, res) => res.render("admin-setup", { configured: Boolean(process.env.ADMIN_SETUP_KEY) });
 
-const getProfile = (req, res) => {
-  res.locals.currentUser = req.user;
-  return res.render("profile", { user: req.user });
-};
-
-const updateProfile = asyncHandler((req, res) => {
-  const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
-  const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
-  const phone = typeof req.body.phone === "string" ? req.body.phone.trim() : "";
-  if (!name || name.length > 80 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-      email.length > 254 || !/^[0-9+() -]{8,20}$/.test(phone)) {
-    return res.status(400).send("성명, 이메일 또는 전화번호를 확인해 주세요.");
-  }
-  User.updateProfile(req.user._id, { name, email, phone });
-  return res.redirect("/ideas");
-});
-
 const setupAdmin = asyncHandler(async (req, res) => {
   const { username, password, setupKey, publicKey } = req.body;
   if (!process.env.ADMIN_SETUP_KEY || setupKey !== process.env.ADMIN_SETUP_KEY) {
@@ -183,4 +166,4 @@ const setupAdmin = asyncHandler(async (req, res) => {
   return res.status(201).json({ message: "관리자 계정이 생성되었습니다." });
 });
 
-module.exports = { getRegister, registerUser, getLogin, loginUser, logout, getAdminSetup, setupAdmin, getProfile, updateProfile };
+module.exports = { getRegister, registerUser, getLogin, loginUser, logout, getAdminSetup, setupAdmin };

@@ -27,7 +27,7 @@ const User = {
     // 아이디가 일치하는 사용자 정보를 조회하고, 결과가 없으면 null을 반환합니다.
     return database
       // 데이터베이스 id를 모델의 _id 필드로 반환하도록 SELECT 문을 준비합니다.
-      .prepare("SELECT id AS _id, username, password, role, publicKey, name, email, phone FROM users WHERE username = ?")
+      .prepare("SELECT id AS _id, username, password, account_type, role, publicKey, name, email, phone FROM users WHERE username = ?")
       // 전달받은 아이디로 조회를 실행합니다.
       .get(username) || null;
   },
@@ -37,7 +37,7 @@ const User = {
     // 데이터베이스 id를 모델의 _id 필드로 반환하도록 조회하고, 결과가 없으면 null을 반환합니다.
     return database
       // 전달된 ID와 일치하는 사용자를 찾는 SQL 문을 준비합니다.
-      .prepare("SELECT id AS _id, username, role, publicKey, name, email, phone FROM users WHERE id = ?")
+      .prepare("SELECT id AS _id, username, account_type, role, publicKey, name, email, phone FROM users WHERE id = ?")
       // ID를 숫자로 변환해 조회를 실행합니다.
       .get(Number(id)) || null;
   },
@@ -50,7 +50,7 @@ const User = {
 
   findByOAuth(provider, subject) {
     return database.prepare(`
-      SELECT u.id AS _id, u.username, u.role, u.publicKey, u.name, u.email, u.phone
+      SELECT u.id AS _id, u.username, u.account_type, u.role, u.publicKey, u.name, u.email, u.phone
       FROM users u JOIN oauth_accounts o ON o.user_id = u.id
       WHERE o.provider = ? AND o.subject = ?
     `).get(provider, subject) || null;
@@ -62,11 +62,11 @@ const User = {
     `).get() || null;
   },
 
-  createOAuthAccount({ provider, subject, username, password, name, email, phone }) {
+  createOAuthAccount({ provider, subject, username, password, name, email }) {
     const create = database.transaction(() => {
       const result = database.prepare(
-        "INSERT INTO users (username, password, role, name, email, phone) VALUES (?, ?, 'user', ?, ?, ?)"
-      ).run(username, password, name || null, email || null, phone || null);
+        "INSERT INTO users (username, password, account_type, role, name, email) VALUES (?, ?, ?, 'user', ?, ?)"
+      ).run(username, password, provider, name || null, email || null);
       database.prepare(
         "INSERT INTO oauth_accounts (provider, subject, user_id) VALUES (?, ?, ?)"
       ).run(provider, subject, result.lastInsertRowid);
@@ -74,18 +74,13 @@ const User = {
     });
     return create();
   },
-  updateOAuthProfile(id, { name, email, phone }) {
+  updateOAuthProfile(id, { name, email }) {
     return database.prepare(`
       UPDATE users SET
         name = COALESCE(NULLIF(?, ''), name),
-        email = COALESCE(NULLIF(?, ''), email),
-        phone = COALESCE(NULLIF(?, ''), phone)
+        email = COALESCE(NULLIF(?, ''), email)
       WHERE id = ?
-    `).run(name || "", email || "", phone || "", Number(id)).changes;
-  },
-  updateProfile(id, { name, email, phone }) {
-    return database.prepare("UPDATE users SET name = ?, email = ?, phone = ? WHERE id = ?")
-      .run(name, email, phone, Number(id)).changes;
+    `).run(name || "", email || "", Number(id)).changes;
   },
 };
 

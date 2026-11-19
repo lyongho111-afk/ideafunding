@@ -24,6 +24,7 @@ database.exec(`
     username TEXT NOT NULL UNIQUE,
     -- password: 비밀번호 (실무에서는 반드시 해시해서 저장해야 함)
     password TEXT NOT NULL,
+    account_type TEXT NOT NULL DEFAULT 'local' CHECK (account_type IN ('local', 'kakao', 'google')),
     role TEXT NOT NULL DEFAULT 'user',
     publicKey TEXT,
     name TEXT,
@@ -111,6 +112,17 @@ if (!userColumns.includes("role")) {
 }
 if (!userColumns.includes("publicKey")) {
   database.exec("ALTER TABLE users ADD COLUMN publicKey TEXT");
+}
+if (!userColumns.includes("account_type")) {
+  database.exec("ALTER TABLE users ADD COLUMN account_type TEXT NOT NULL DEFAULT 'local' CHECK (account_type IN ('local', 'kakao', 'google'))");
+  database.exec(`
+    UPDATE users SET account_type = (
+      SELECT o.provider FROM oauth_accounts o
+      WHERE o.user_id = users.id
+      ORDER BY o.created_at, o.id LIMIT 1
+    )
+    WHERE EXISTS (SELECT 1 FROM oauth_accounts o WHERE o.user_id = users.id)
+  `);
 }
 for (const column of ["name", "email", "phone"]) {
   if (!userColumns.includes(column)) database.exec(`ALTER TABLE users ADD COLUMN ${column} TEXT`);

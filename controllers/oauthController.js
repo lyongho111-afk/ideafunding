@@ -18,7 +18,7 @@ const configs = {
     tokenEndpoint: "https://oauth2.googleapis.com/token",
     jwksUri: "https://www.googleapis.com/oauth2/v3/certs",
     issuer: ["https://accounts.google.com", "accounts.google.com"],
-    scope: "openid email profile https://www.googleapis.com/auth/user.phonenumbers.read",
+    scope: "openid email profile",
   },
   kakao: {
     clientId: process.env.KAKAO_CLIENT_ID,
@@ -27,7 +27,7 @@ const configs = {
     tokenEndpoint: "https://kauth.kakao.com/oauth/token",
     jwksUri: "https://kauth.kakao.com/.well-known/jwks.json",
     issuer: "https://kauth.kakao.com",
-    scope: "openid profile_nickname account_email name phone_number",
+    scope: "openid profile_nickname account_email",
   },
 };
 const jwksCache = new Map();
@@ -103,46 +103,6 @@ const verifyIdentityToken = async (provider, idToken, expectedNonce) => {
   return claims;
 };
 
-const getProviderProfile = async (provider, claims, accessToken) => {
-  const profile = {
-    name: typeof claims.name === "string" ? claims.name.trim() : "",
-    email: typeof claims.email === "string" && claims.email_verified !== false
-      ? claims.email.trim().toLowerCase() : "",
-    phone: "",
-  };
-  if (!accessToken) return profile;
-
-  const endpoint = provider === "google"
-    ? "https://people.googleapis.com/v1/people/me?personFields=names,phoneNumbers"
-    : "https://kapi.kakao.com/v2/user/me";
-  let response;
-  try {
-    response = await fetch(endpoint, { headers: { Authorization: `Bearer ${accessToken}` } });
-  } catch (error) {
-    console.warn(`${provider} 프로필 추가 정보 요청에 실패했습니다: ${error.message}`);
-    return profile;
-  }
-  if (!response.ok) {
-    console.warn(`${provider} 프로필 추가 정보를 가져오지 못했습니다 (${response.status}). 부족한 항목은 프로필에서 입력해야 합니다.`);
-    return profile;
-  }
-  const data = await response.json();
-  if (provider === "google") {
-    profile.name = profile.name || data.names?.[0]?.displayName || "";
-    profile.phone = data.phoneNumbers?.[0]?.canonicalForm || data.phoneNumbers?.[0]?.value || "";
-    return profile;
-  }
-  if (String(data.id) !== String(claims.sub)) {
-    throw new Error("카카오 프로필 계정이 인증된 계정과 일치하지 않습니다.");
-  }
-  const kakaoAccount = data.kakao_account || {};
-  profile.name = kakaoAccount.name || "";
-  profile.email = kakaoAccount.is_email_verified === false
-    ? "" : (kakaoAccount.email || profile.email);
-  profile.phone = kakaoAccount.phone_number || "";
-  return profile;
-};
-
 const finishOAuth = (provider) => asyncHandler(async (req, res) => {
   const config = configs[provider];
   const cookieName = `oauth_${provider}`;
@@ -195,7 +155,11 @@ const finishOAuth = (provider) => asyncHandler(async (req, res) => {
   }
 
   let user = User.findByOAuth(provider, claims.sub);
-  const profile = await getProviderProfile(provider, claims, tokens.access_token);
+  const profile = {
+    name: typeof (claims.name || claims.nickname) === "string" ? (claims.name || claims.nickname).trim() : "",
+    email: typeof claims.email === "string" && claims.email_verified !== false
+      ? claims.email.trim().toLowerCase() : "",
+  };
   if (!user) {
     const username = `${provider}_${crypto.createHash("sha256").update(`${provider}:${claims.sub}`).digest("hex").slice(0, 32)}`;
     const randomPassword = await bcrypt.hash(crypto.randomBytes(48).toString("base64url"), 10);
@@ -219,8 +183,7 @@ const finishOAuth = (provider) => asyncHandler(async (req, res) => {
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 1000,
   });
-  if (!user.name || !user.email || !user.phone) return res.redirect("/profile");
-  return res.redirect(user.publicKey ? "/ideas" : "/ideas/key-setup");
+  return res.redirect("/ideas");
 });
 
 module.exports = {

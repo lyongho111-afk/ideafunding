@@ -26,6 +26,7 @@ const listIdeas = asyncHandler((req, res) => {
 });
 
 const newIdeaPage = asyncHandler((req, res) => {
+  if (req.user.account_type !== "local") return res.status(403).send("아이디어 저장과 펀딩 제안은 아이디·비밀번호 계정만 이용할 수 있습니다.");
   if (!req.user.publicKey || req.user.publicKey === "admin-no-encryption") return res.redirect("/ideas/key-setup");
   const admin = User.findAdmin();
   return res.render("idea-new", {
@@ -35,7 +36,9 @@ const newIdeaPage = asyncHandler((req, res) => {
   });
 });
 
-const keySetupPage = asyncHandler((req, res) => res.render("key-setup"));
+const keySetupPage = asyncHandler((req, res) => {
+  return res.render("key-setup");
+});
 
 const saveAccountKey = asyncHandler((req, res) => {
   const { publicKey } = req.body;
@@ -55,6 +58,7 @@ const saveAccountKey = asyncHandler((req, res) => {
 });
 
 const createIdea = asyncHandler((req, res) => {
+  if (req.user.account_type !== "local") return res.status(403).send("아이디어 저장과 펀딩 제안은 아이디·비밀번호 계정만 이용할 수 있습니다.");
   const { title, category, summary, fundingGoal, encryptedDetails, wrappedKey, reviewPreview, reviewWrappedKey } = req.body;
   const normalizedTitle = typeof title === "string" ? title.trim() : "";
   const normalizedCategory = typeof category === "string" ? category.trim() : "";

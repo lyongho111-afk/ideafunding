@@ -16,17 +16,13 @@ const {
   logout,
   getAdminSetup,
   setupAdmin,
-  getProfile,
-  updateProfile,
 } = require("../controllers/loginController");
-const checkLogin = require("../middlewares/checkLogin");
 
 // 루트 경로의 GET 요청은 로그인 화면을, POST 요청은 로그인을 처리합니다.
 router.route("/").get((req, res) => res.redirect("/ideas")).post(loginUser);
 router.get("/login", getLogin);
 // /register 경로의 GET 요청은 가입 화면을, POST 요청은 회원가입을 처리합니다.
 router.route("/register").get(getRegister).post(registerUser);
-router.route("/profile").get(checkLogin, getProfile).post(checkLogin, updateProfile);
 // /logout 경로의 GET 요청은 로그아웃을 처리합니다.
 router.route("/logout").get(logout);
 router.route("/admin/setup").get(getAdminSetup).post(setupAdmin);

@@ -1,6 +1,6 @@
 <%- include('./include/_header') %>
 <main class="container page">
-  <div class="section-heading"><div><p class="eyebrow">YOUR WORKSPACE</p><h1>내 아이디어</h1></div><a class="button primary" href="/ideas/new">새 아이디어 제안</a></div>
+  <div class="section-heading"><div><p class="eyebrow">YOUR WORKSPACE</p><h1>내 아이디어</h1></div><% if (currentUser.account_type === "local") { %><a class="button primary" href="/ideas/new">새 아이디어 제안</a><% } %></div>
   <section class="idea-grid">
     <% if (ideas.length) { ideas.forEach((idea) => { %>
       <article class="idea-card">
@@ -8,7 +8,7 @@
         <h3><a href="/ideas/<%= idea.id %>"><%= idea.title %></a></h3><p><%= idea.summary %></p>
         <div class="idea-meta"><span>예약액 <strong><%= Number(idea.pledged).toLocaleString('ko-KR') %>원</strong></span><span>목표 <strong><%= Number(idea.funding_goal).toLocaleString('ko-KR') %>원</strong></span></div>
       </article>
-    <% }); } else { %><div class="empty-state"><h3>등록한 아이디어가 없습니다.</h3><a class="text-link" href="/ideas/new">첫 아이디어 제안하기 →</a></div><% } %>
+    <% }); } else { %><div class="empty-state"><h3>등록한 아이디어가 없습니다.</h3><% if (currentUser.account_type === "local") { %><a class="text-link" href="/ideas/new">첫 아이디어 제안하기 →</a><% } %></div><% } %>
   </section>
 </main>
 <%- include('./include/_footer') %>

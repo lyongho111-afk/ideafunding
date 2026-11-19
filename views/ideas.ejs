@@ -4,7 +4,7 @@
     <p class="eyebrow">IDEA VAULT · PRIVATE BY DESIGN</p>
     <h1>아이디어를 지키면서<br>가능성을 함께 키우세요.</h1>
     <p>검수된 아이디어의 공개 요약을 확인하고, 목표 금액을 에스크로 예약한 뒤 질문과 상세 내용을 확인할 수 있습니다.</p>
-    <% if (currentUser) { %><a class="button primary" href="<%= currentUser.publicKey && currentUser.publicKey !== 'admin-no-encryption' ? '/ideas/new' : '/ideas/key-setup' %>"><%= currentUser.publicKey && currentUser.publicKey !== 'admin-no-encryption' ? '아이디어 제안하기' : '암호화 키 설정하기' %></a><% } else { %><a class="button primary" href="/register">무료로 시작하기</a><% } %>
+    <% if (currentUser && currentUser.account_type === "local") { %><a class="button primary" href="<%= currentUser.publicKey && currentUser.publicKey !== 'admin-no-encryption' ? '/ideas/new' : '/ideas/key-setup' %>"><%= currentUser.publicKey && currentUser.publicKey !== 'admin-no-encryption' ? '아이디어 제안하기' : '암호화 키 설정하기' %></a><% } else if (!currentUser) { %><a class="button primary" href="/register">무료로 시작하기</a><% } %>
     <span class="notice">현재 데모는 실제 결제·자금 보관을 연결하지 않은 에스크로 예약 시뮬레이션입니다.</span>
   </section>
   <div class="section-heading"><div><p class="eyebrow">CURATED IDEAS</p><h2>검수 완료 아이디어</h2></div><span class="muted"><%= ideas.length %>개의 아이디어</span></div>

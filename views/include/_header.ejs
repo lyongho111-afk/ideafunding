@@ -17,11 +17,12 @@
         <a href="/ideas">아이디어 둘러보기</a>
         <a href="/ideas/feed">일상 피드</a>
         <% if (typeof currentUser !== "undefined" && currentUser) { %>
-          <a href="<%= currentUser.publicKey && currentUser.publicKey !== 'admin-no-encryption' ? '/ideas/new' : '/ideas/key-setup' %>"><%= currentUser.publicKey && currentUser.publicKey !== 'admin-no-encryption' ? '아이디어 등록' : '키 설정' %></a>
-          <a href="/ideas/my">내 아이디어</a>
-          <a href="/profile">프로필</a>
+          <% if (currentUser.account_type === "local") { %>
+            <a href="<%= currentUser.publicKey && currentUser.publicKey !== 'admin-no-encryption' ? '/ideas/new' : '/ideas/key-setup' %>"><%= currentUser.publicKey && currentUser.publicKey !== 'admin-no-encryption' ? '아이디어 등록' : '키 설정' %></a>
+            <a href="/ideas/my">내 아이디어</a>
+          <% } %>
           <% if (currentUser.role === "admin") { %><a href="/ideas/admin">검수 대시보드</a><% } %>
-          <span><%= currentUser.username %>님</span>
+          <span><%= currentUser.name || currentUser.username %>님<% if (currentUser.account_type !== "local") { %> · <%= currentUser.account_type === "kakao" ? "카카오" : "Google" %><% } %></span>
           <a href="/logout">로그아웃</a>
         <% } else { %>
           <a href="/login">로그인</a>
