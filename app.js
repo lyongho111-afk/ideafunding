@@ -41,7 +41,9 @@ app.use("/auth", require("./routes/oauthRoutes"));
 app.use("/ideas", require("./routes/ideaRoutes"));
 
 // 지정한 포트에서 서버를 시작합니다.
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
   // 서버가 실행되었음을 포트 번호와 함께 터미널에 출력합니다.
   console.log(`${port}번 포트에서 서버 실행 중`);
 });
+const PORT = process.env.PORT || 3000;
+
