@@ -4,38 +4,38 @@ const Idea = {
   listPublic() {
     return database.prepare(`
       SELECT i.id, i.title, i.category, i.summary, i.funding_goal, i.created_at,
-        u.username AS owner_name,
+        COALESCE(NULLIF(u.name, ''), u.username) AS owner_name,
         COALESCE((SELECT SUM(p.amount) FROM pledges p WHERE p.idea_id = i.id AND p.status = 'held'), 0) AS pledged
       FROM ideas i JOIN users u ON u.id = i.owner_id
-      WHERE i.status = 'approved'
+      WHERE i.status = 'approved' AND i.storage_mode = 'funding'
       ORDER BY i.created_at DESC
     `).all();
   },
   findById(id) {
     return database.prepare(`
-      SELECT i.*, u.username AS owner_name, u.publicKey AS owner_public_key
+      SELECT i.*, COALESCE(NULLIF(u.name, ''), u.username) AS owner_name, u.publicKey AS owner_public_key
       FROM ideas i JOIN users u ON u.id = i.owner_id WHERE i.id = ?
     `).get(Number(id)) || null;
   },
-  create({ ownerId, title, category, summary, fundingGoal, encryptedDetails, wrappedKey, reviewPreview, reviewWrappedKey }) {
+  create({ ownerId, title, category, summary, fundingGoal, encryptedDetails, wrappedKey, reviewPreview, reviewWrappedKey, storageMode }) {
     const result = database.prepare(`
-      INSERT INTO ideas (owner_id, title, category, summary, funding_goal, encrypted_details, wrapped_key, review_preview, review_wrapped_key)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(ownerId, title, category, summary, fundingGoal, encryptedDetails, wrappedKey, reviewPreview, reviewWrappedKey);
+      INSERT INTO ideas (owner_id, title, category, summary, funding_goal, encrypted_details, wrapped_key, review_preview, review_wrapped_key, storage_mode)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(ownerId, title, category, summary, fundingGoal, encryptedDetails, wrappedKey, reviewPreview, reviewWrappedKey, storageMode);
     return this.findById(result.lastInsertRowid);
   },
   forOwner(ownerId) {
     return database.prepare(`
       SELECT i.*,
         COALESCE((SELECT SUM(p.amount) FROM pledges p WHERE p.idea_id = i.id AND p.status = 'held'), 0) AS pledged
-      FROM ideas i WHERE i.owner_id = ? ORDER BY i.created_at DESC
+      FROM ideas i       WHERE i.owner_id = ? ORDER BY i.created_at DESC
     `).all(ownerId);
   },
   pending() {
     return database.prepare(`
       SELECT i.id, i.title, i.category, i.summary, i.funding_goal, i.created_at,
-        i.review_preview, i.review_wrapped_key, u.username AS owner_name
-      FROM ideas i JOIN users u ON u.id = i.owner_id WHERE i.status = 'pending' ORDER BY i.created_at
+        i.review_preview, i.review_wrapped_key, COALESCE(NULLIF(u.name, ''), u.username) AS owner_name
+      FROM ideas i JOIN users u ON u.id = i.owner_id WHERE i.status = 'pending' AND i.storage_mode = 'funding' ORDER BY i.created_at
     `).all();
   },
   review(id, status, fundingGoal) {

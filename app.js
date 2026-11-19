@@ -38,8 +38,6 @@ app.use(express.urlencoded({ extended: true }));
 // 루트 경로의 로그인/회원가입 라우트를 연결합니다.
 app.use("/", require("./routes/loginRoutes"));
 app.use("/auth", require("./routes/oauthRoutes"));
-// /contacts 경로의 연락처 라우트를 연결합니다.
-app.use("/contacts", require("./routes/contactRoutes"));
 app.use("/ideas", require("./routes/ideaRoutes"));
 
 // 지정한 포트에서 서버를 시작합니다.

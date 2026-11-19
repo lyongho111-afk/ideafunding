@@ -2,16 +2,18 @@
 <main class="container page narrow">
   <a class="text-link back-link" href="/ideas">← 아이디어 목록</a>
   <article class="detail-card panel">
-    <div class="card-top"><span class="tag"><%= idea.category %></span><span class="status <%= idea.status %>"><%= {pending:'검수 대기', approved:'공개 중', rejected:'반려'}[idea.status] %></span></div>
+    <div class="card-top"><span class="tag"><%= idea.category %></span><span class="status <%= idea.storage_mode === 'private' ? 'private' : idea.status %>"><%= idea.storage_mode === 'private' ? '비공개 보관' : {pending:'검수 대기', approved:'공개 중', rejected:'반려'}[idea.status] %></span></div>
     <h1><%= idea.title %></h1>
-    <p class="detail-summary"><%= idea.summary %></p>
-    <div class="idea-meta"><span>제안자 <strong><%= idea.owner_name %></strong></span><span>목표 <strong><%= Number(idea.funding_goal).toLocaleString('ko-KR') %>원</strong></span></div>
-    <p class="notice">예약 금액은 실제 결제되지 않습니다. 이 데모는 결제사 연동 전 단계이며 에스크로 자금 보관을 제공하지 않습니다.</p>
+    <% if (idea.summary) { %><p class="detail-summary"><%= idea.summary %></p><% } %>
+    <% if (idea.storage_mode === 'funding') { %>
+      <div class="idea-meta"><span>제안자 <strong><%= idea.owner_name %></strong></span><span>목표 <strong><%= Number(idea.funding_goal).toLocaleString('ko-KR') %>원</strong></span></div>
+      <p class="notice">예약 금액은 실제 결제되지 않습니다. 이 데모는 결제사 연동 전 단계이며 에스크로 자금 보관을 제공하지 않습니다.</p>
+    <% } %>
 
     <% if (owner) { %>
       <section class="private-section">
         <h2>내 암호화 상세 내용</h2>
-        <p>전체 상세 내용은 본인의 개인키로만 복호화할 수 있습니다. 검수자는 제출된 앞부분 약 50%만 별도로 확인할 수 있습니다. 개인키를 분실하면 전체 내용을 복구할 수 없습니다.</p>
+        <p><%= idea.storage_mode === 'private' ? '비공개로 보관된 아이디어입니다. 전체 상세 내용은 본인의 개인키로만 복호화할 수 있습니다.' : '전체 상세 내용은 본인의 개인키로만 복호화할 수 있습니다. 검수자는 제출된 앞부분 약 50%만 별도로 확인할 수 있습니다.' %> 개인키를 분실하면 전체 내용을 복구할 수 없습니다.</p>
         <label class="file-label">개인키 파일 불러오기<input type="file" id="private-key-file" accept="application/json"></label>
         <button class="button secondary" id="decrypt-own">내 상세 내용 열기</button>
         <pre class="decrypted-content" id="own-details" hidden></pre>

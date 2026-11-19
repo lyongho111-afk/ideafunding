@@ -4,7 +4,7 @@
   <section class="idea-grid">
     <% if (ideas.length) { ideas.forEach((idea) => { %>
       <article class="idea-card">
-        <div class="card-top"><span class="tag"><%= idea.category %></span><span class="status <%= idea.status %>"><%= {pending:'검수 대기', approved:'공개 중', rejected:'반려'}[idea.status] %></span></div>
+        <div class="card-top"><span class="tag"><%= idea.category %></span><span class="status <%= idea.storage_mode === 'private' ? 'private' : idea.status %>"><%= idea.storage_mode === 'private' ? '비공개 보관' : {pending:'검수 대기', approved:'공개 중', rejected:'반려'}[idea.status] %></span></div>
         <h3><a href="/ideas/<%= idea.id %>"><%= idea.title %></a></h3><p><%= idea.summary %></p>
         <div class="idea-meta"><span>예약액 <strong><%= Number(idea.pledged).toLocaleString('ko-KR') %>원</strong></span><span>목표 <strong><%= Number(idea.funding_goal).toLocaleString('ko-KR') %>원</strong></span></div>
       </article>

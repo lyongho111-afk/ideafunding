@@ -56,31 +56,38 @@ const saveAccountKey = asyncHandler((req, res) => {
 
 const createIdea = asyncHandler((req, res) => {
   const { title, category, summary, fundingGoal, encryptedDetails, wrappedKey, reviewPreview, reviewWrappedKey } = req.body;
-  if (!req.user.publicKey) return res.status(409).send("아이디어 등록 전에 암호화 키를 설정해 주세요.");
+  const normalizedTitle = typeof title === "string" ? title.trim() : "";
+  const normalizedCategory = typeof category === "string" ? category.trim() : "";
+  const normalizedSummary = typeof summary === "string" ? summary.trim() : "";
+  if (!req.user.publicKey || req.user.publicKey === "admin-no-encryption") return res.status(409).send("아이디어 등록 전에 암호화 키를 설정해 주세요.");
   const admin = User.findAdmin();
-  if (!admin?.publicKey || admin.publicKey === "admin-no-encryption") {
-    return res.status(503).send("관리자 계정과 검수용 암호화 키를 먼저 설정해 주세요.");
+  const storageMode = req.body.storageMode;
+  if (!["funding", "private"].includes(storageMode)) return res.status(400).send("저장 방식을 선택해 주세요.");
+  if (storageMode === "funding" && (!admin?.publicKey || admin.publicKey === "admin-no-encryption")) {
+    return res.status(503).send("펀딩 공개를 위해 관리자 계정과 검수용 암호화 키를 먼저 설정해 주세요.");
   }
   const goal = Number(fundingGoal);
-  if (!title?.trim() || title.length > 100 || !category?.trim() || category.length > 40 ||
-      !summary?.trim() || summary.length > 600 || !Number.isSafeInteger(goal) || goal < 1000 ||
-      goal > 1000000000 || !encryptedDetails || encryptedDetails.length > 90000 ||
-      !wrappedKey || wrappedKey.length > 2000 || !reviewPreview || reviewPreview.length > 50000 ||
-      !reviewWrappedKey || reviewWrappedKey.length > 2000) {
+  if (!normalizedTitle || normalizedTitle.length > 100 || !normalizedCategory || normalizedCategory.length > 40 ||
+      (storageMode === "funding" && (!normalizedSummary || normalizedSummary.length > 600 || !Number.isSafeInteger(goal) || goal < 1000 || goal > 1000000000)) ||
+      !encryptedDetails || encryptedDetails.length > 90000 || !wrappedKey || wrappedKey.length > 2000 ||
+      (storageMode === "funding" && (!reviewPreview || reviewPreview.length > 50000 || !reviewWrappedKey || reviewWrappedKey.length > 2000))) {
     return res.status(400).send("입력 항목과 암호화된 상세 내용을 확인해 주세요.");
   }
   Idea.create({
     ownerId: req.user._id,
-    title: title.trim(),
-    category: category.trim(),
-    summary: summary.trim(),
-    fundingGoal: goal,
+    title: normalizedTitle,
+    category: normalizedCategory,
+    summary: storageMode === "funding" ? normalizedSummary : "",
+    fundingGoal: storageMode === "funding" ? goal : 0,
     encryptedDetails,
     wrappedKey,
-    reviewPreview,
-    reviewWrappedKey,
+    reviewPreview: storageMode === "funding" ? reviewPreview : null,
+    reviewWrappedKey: storageMode === "funding" ? reviewWrappedKey : null,
+    storageMode,
   });
-  return res.status(201).json({ message: "아이디어가 검수 대기 목록에 등록되었습니다." });
+  return res.status(201).json({
+    message: storageMode === "funding" ? "아이디어가 검수 대기 목록에 등록되었습니다." : "아이디어를 비공개로 저장했습니다.",
+  });
 });
 
 const myIdeas = asyncHandler((req, res) => {
@@ -90,7 +97,8 @@ const myIdeas = asyncHandler((req, res) => {
 const ideaPage = asyncHandler((req, res) => {
   const id = parseId(req.params.id);
   const idea = id && Idea.findById(id);
-  if (!idea || (idea.status !== "approved" && idea.owner_id !== req.user?._id)) {
+  if (!idea || (idea.storage_mode !== "funding" && idea.owner_id !== req.user?._id) ||
+      (idea.storage_mode === "funding" && idea.status !== "approved" && idea.owner_id !== req.user?._id)) {
     return res.status(404).send("아이디어를 찾을 수 없습니다.");
   }
   const owner = req.user?._id === idea.owner_id;

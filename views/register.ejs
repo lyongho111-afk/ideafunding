@@ -35,6 +35,18 @@
         <input type="text" placeholder="사용할 아이디를 입력하세요" name="username" id="username" maxlength="40" autocomplete="username" required>
       </div>
       <div class="form-group">
+        <label for="name">성명</label>
+        <input type="text" placeholder="성명을 입력하세요" name="name" id="name" maxlength="80" autocomplete="name" required>
+      </div>
+      <div class="form-group">
+        <label for="email">이메일</label>
+        <input type="email" placeholder="name@example.com" name="email" id="email" maxlength="254" autocomplete="email" required>
+      </div>
+      <div class="form-group">
+        <label for="phone">전화번호</label>
+        <input type="tel" placeholder="010-1234-5678" name="phone" id="phone" maxlength="20" autocomplete="tel" pattern="[0-9+() -]{8,20}" required>
+      </div>
+      <div class="form-group">
         <label for="password">비밀번호 <span>10자 이상</span></label>
         <input type="password" placeholder="10자 이상 입력하세요" name="password" id="password" minlength="10" maxlength="128" autocomplete="new-password" required>
       </div>

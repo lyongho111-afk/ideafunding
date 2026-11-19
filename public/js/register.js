@@ -14,6 +14,9 @@ document.getElementById("register-form").addEventListener("submit", async (event
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         username,
+        name: form.elements.name.value.trim(),
+        email: form.elements.email.value.trim(),
+        phone: form.elements.phone.value.trim(),
         password: form.elements.password.value,
         password2: form.elements.password2.value,
         publicKey: JSON.stringify(publicKey),

@@ -37,15 +37,21 @@ const getRegister = (req, res) => res.render("register", { oauthProviders: oauth
 // 회원가입 요청을 검증하고 사용자를 저장하는 컨트롤러입니다.
 const registerUser = asyncHandler(async (req, res) => {
   // 요청 본문에서 아이디, 비밀번호, 비밀번호 확인 값을 가져옵니다.
-  const { username, password, password2, publicKey } = req.body;
+  const { username, password, password2, publicKey, name, email, phone } = req.body;
   const normalizedUsername = typeof username === "string" ? username.trim() : "";
+  const normalizedName = typeof name === "string" ? name.trim() : "";
+  const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+  const normalizedPhone = typeof phone === "string" ? phone.trim() : "";
   let parsedPublicKey;
   try {
     parsedPublicKey = JSON.parse(publicKey);
   } catch (error) {
     parsedPublicKey = null;
   }
-  if (!normalizedUsername || normalizedUsername.length > 40 || !password || password.length < 10 || password.length > 128 ||
+  if (!normalizedUsername || normalizedUsername.length > 40 || !normalizedName || normalizedName.length > 80 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) || normalizedEmail.length > 254 ||
+      !/^[0-9+() -]{8,20}$/.test(normalizedPhone) ||
+      !password || password.length < 10 || password.length > 128 ||
       password !== password2 || !parsedPublicKey || parsedPublicKey.kty !== "RSA" || parsedPublicKey.alg !== "RSA-OAEP-256") {
     return res.status(400).send("아이디와 비밀번호를 확인해 주세요.");
   }
@@ -59,7 +65,10 @@ const registerUser = asyncHandler(async (req, res) => {
   // 평문 비밀번호를 비용 계수 10으로 해시합니다.
   const hashedPassword = await bcrypt.hash(password, 10);
   // 해시된 비밀번호와 아이디를 새 사용자로 저장합니다.
-  const user = User.create({ username: normalizedUsername, password: hashedPassword, publicKey });
+  const user = User.create({
+    username: normalizedUsername, password: hashedPassword, publicKey,
+    name: normalizedName, email: normalizedEmail, phone: normalizedPhone,
+  });
   return res.status(201).json({ message: "계정이 생성되었습니다.", username: user.username });
 });
 
@@ -114,7 +123,7 @@ const loginUser = asyncHandler(async (req, res) => {
     maxAge: 60 * 60 * 1000,
   });
 
-  // 인증이 끝나면 연락처 목록 화면으로 이동합니다.
+  // 인증이 끝나면 아이디어 목록 화면으로 이동합니다.
   return res.redirect("/ideas");
 });
 
@@ -130,6 +139,23 @@ const logout = (req, res) => {
 
 // 라우터에서 사용할 인증 관련 컨트롤러들을 내보냅니다.
 const getAdminSetup = (req, res) => res.render("admin-setup", { configured: Boolean(process.env.ADMIN_SETUP_KEY) });
+
+const getProfile = (req, res) => {
+  res.locals.currentUser = req.user;
+  return res.render("profile", { user: req.user });
+};
+
+const updateProfile = asyncHandler((req, res) => {
+  const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
+  const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
+  const phone = typeof req.body.phone === "string" ? req.body.phone.trim() : "";
+  if (!name || name.length > 80 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+      email.length > 254 || !/^[0-9+() -]{8,20}$/.test(phone)) {
+    return res.status(400).send("성명, 이메일 또는 전화번호를 확인해 주세요.");
+  }
+  User.updateProfile(req.user._id, { name, email, phone });
+  return res.redirect("/ideas");
+});
 
 const setupAdmin = asyncHandler(async (req, res) => {
   const { username, password, setupKey, publicKey } = req.body;
@@ -157,4 +183,4 @@ const setupAdmin = asyncHandler(async (req, res) => {
   return res.status(201).json({ message: "관리자 계정이 생성되었습니다." });
 });
 
-module.exports = { getRegister, registerUser, getLogin, loginUser, logout, getAdminSetup, setupAdmin };
+module.exports = { getRegister, registerUser, getLogin, loginUser, logout, getAdminSetup, setupAdmin, getProfile, updateProfile };
