@@ -31,7 +31,7 @@ dbConnect();
 app.use(cookieParser());
 
 // JSON 형식 요청 본문을 객체로 변환하는 미들웨어를 등록합니다.
-app.use(express.json({ limit: "200kb" }));
+app.use(express.json({ limit: "6mb" }));
 // URL 인코딩 형식의 폼 본문을 객체로 변환하는 미들웨어를 등록합니다.
 app.use(express.urlencoded({ extended: true }));
 

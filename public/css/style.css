@@ -339,7 +339,7 @@ body { background: #f7f8f5; color: #20271f; }
 .storage-choice { display: flex; flex-wrap: wrap; gap: 14px; border: 1px solid #e8ebe5; border-radius: 10px; padding: 14px; }
 .storage-choice legend { padding: 0 6px; color: #384135; font-size: .9rem; font-weight: 700; }
 .storage-choice label { display: flex; align-items: center; gap: 8px; }
-.daily-post-list { display: grid; gap: 16px; margin-top: 20px; }
+.daily-post-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; gap: 16px; margin-top: 20px; }
 .daily-post { padding: 20px; }
 .daily-post-heading, .daily-actions, .daily-comment-form { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .daily-post-heading time, .daily-actions { color: #858b82; font-size: .8rem; }
@@ -350,6 +350,36 @@ body { background: #f7f8f5; color: #20271f; }
 .daily-comments p { margin: 10px 0; font-size: .88rem; }
 .daily-comment-form input { flex: 1; min-width: 0; border: 1px solid #dfe4dc; border-radius: 8px; padding: 10px 12px; font: inherit; }
 .daily-comment-form .button { padding: 9px 14px; }
+.daily-composer { margin-bottom: 28px; }
+.photo-picker { display: grid; gap: 8px; border: 1px dashed #cbd6c7; border-radius: 10px; padding: 14px; color: #384135; font-size: .9rem; font-weight: 700; }
+.photo-picker input { max-width: 100%; font: inherit; font-size: .82rem; }
+.image-previews { display: flex; flex-wrap: wrap; gap: 8px; }
+.image-preview { max-width: 180px; overflow: hidden; border-radius: 7px; background: #f0f3ed; padding: 7px 10px; color: #53624f; font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
+.friend-section, .daily-feed-section { margin-top: 32px; }
+.friend-section .section-heading, .daily-feed-section .section-heading { margin: 22px 0 14px; }
+.friend-section .section-heading h2, .daily-feed-section .section-heading h2 { font-size: 1.35rem; }
+.friend-search { display: flex; gap: 9px; }
+.friend-search input { flex: 1; min-width: 0; border: 1px solid #dfe4dc; border-radius: 8px; padding: 10px 12px; font: inherit; }
+.friend-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 12px; margin-top: 14px; }
+.friend-tile { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 8px; border: 1px solid #e8ebe5; border-radius: 14px; background: #fff; padding: 18px 12px; text-align: center; }
+.friend-tile > strong { max-width: 100%; overflow-wrap: anywhere; }
+.friend-tile > small { color: #858b82; }
+.friend-tile form { margin-top: 3px; }
+.friend-avatar { display: grid; flex: 0 0 44px; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #e7eee4; color: #2e5935; font-size: 1.05rem; font-weight: 800; }
+.friend-avatar.small { flex-basis: 30px; width: 30px; height: 30px; font-size: .8rem; }
+.daily-author { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.friend-badge, .friend-state { border-radius: 20px; background: #e7f3e5; padding: 4px 8px; color: #386d31; font-size: .7rem; }
+.friend-remove { border: 0; background: transparent; color: #858b82; font: inherit; font-size: .76rem; cursor: pointer; }
+.add-friend-inline { margin-left: auto; }
+.daily-photo-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 12px 0; overflow: hidden; border-radius: 10px; }
+.daily-photo-grid img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: #f0f3ed; }
+.daily-photo-grid.single { grid-template-columns: 1fr; }
+.daily-photo-grid img:only-child { aspect-ratio: 4 / 3; }
+@media (max-width: 600px) {
+  .daily-post-list { grid-template-columns: minmax(0, 1fr); }
+  .friend-grid { grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); }
+  .daily-post-heading { align-items: flex-start; flex-direction: column; }
+}
 .form-stack label, .review-form label, .pledge-form label { display: grid; gap: 7px; color: #384135; font-size: .9rem; font-weight: 700; }
 .form-stack input, .form-stack textarea, .review-form input, .pledge-form input { width: 100%; box-sizing: border-box; border: 1px solid #dfe4dc; border-radius: 8px; padding: 11px 12px; font: inherit; font-weight: 400; background: #fff; }
 .form-stack textarea { resize: vertical; }

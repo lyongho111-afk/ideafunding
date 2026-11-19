@@ -8,6 +8,8 @@ router.use(controller.attachCurrentUser);
 router.get("/", controller.listIdeas);
 router.get("/feed", dailyPostController.feed);
 router.post("/feed", checkLogin, dailyPostController.createPost);
+router.post("/feed/friends/:friendId", checkLogin, dailyPostController.addFriend);
+router.post("/feed/friends/:friendId/remove", checkLogin, dailyPostController.removeFriend);
 router.post("/feed/:postId/likes", checkLogin, dailyPostController.toggleLike);
 router.post("/feed/:postId/comments", checkLogin, dailyPostController.addComment);
 router.get("/key-setup", checkLogin, controller.keySetupPage);

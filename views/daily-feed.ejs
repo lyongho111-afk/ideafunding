@@ -1,43 +1,113 @@
 <%- include('./include/_header') %>
-<main class="container page narrow">
+<main class="container page">
   <div class="section-heading"><div><p class="eyebrow">COMMUNITY</p><h1>오늘의 일상</h1></div></div>
-  <p class="notice">짧은 생각과 일상을 나누고 다른 사람의 글에 공감해 보세요.</p>
   <% if (currentUser) { %>
-    <form class="panel form-stack daily-composer" action="/ideas/feed" method="post">
-      <label for="post-content">오늘의 한마디<textarea id="post-content" name="content" rows="3" maxlength="500" placeholder="지금의 생각이나 일상을 남겨보세요." required></textarea></label>
-      <button class="button primary" type="submit">게시하기</button>
+    <form class="panel form-stack daily-composer" id="daily-post-form" action="/ideas/feed" method="post">
+      <label for="post-content">오늘의 한마디<textarea id="post-content" name="content" rows="3" maxlength="500" placeholder="지금의 생각이나 일상을 남겨보세요."></textarea></label>
+      <label for="post-images" class="photo-picker">사진 추가 <small>최대 4장 · 사진은 업로드 시 자동으로 크기가 조정됩니다.</small>
+        <input id="post-images" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+      </label>
+      <div id="image-previews" class="image-previews" aria-live="polite"></div>
+      <button class="button primary" type="submit">일상 등록하기</button>
+      <p id="post-status" class="muted" aria-live="polite"></p>
     </form>
+
+    <section class="friend-section">
+      <div class="section-heading"><div><p class="eyebrow">YOUR CIRCLE</p><h2>친구 찾기</h2></div></div>
+      <form class="friend-search" action="/ideas/feed" method="get">
+        <input name="q" type="search" value="<%= searchQuery %>" minlength="2" maxlength="40" placeholder="이름 또는 아이디 검색" aria-label="이름 또는 아이디 검색" required>
+        <button class="button secondary" type="submit">검색</button>
+      </form>
+      <% if (searchQuery) { %>
+        <div class="friend-grid search-results">
+          <% if (people.length) { people.forEach((person) => { %>
+            <article class="friend-tile">
+              <span class="friend-avatar" aria-hidden="true"><%= person.display_name.slice(0, 1) %></span>
+              <strong><%= person.display_name %></strong>
+              <small><%= person.account_type === 'kakao' ? '카카오' : person.account_type === 'google' ? 'Google' : 'IDEA VAULT' %></small>
+              <% if (person.is_friend) { %>
+                <span class="friend-state">이미 친구입니다</span>
+              <% } else { %>
+                <form action="/ideas/feed/friends/<%= person.id %>" method="post"><button class="button secondary" type="submit">친구 추가</button></form>
+              <% } %>
+            </article>
+          <% }); } else { %>
+            <p class="muted">검색 결과가 없습니다. 다른 이름이나 아이디로 검색해 보세요.</p>
+          <% } %>
+        </div>
+      <% } %>
+    </section>
   <% } else { %>
-    <p class="notice"><a class="text-link" href="/login">로그인</a>하면 일상을 작성하고 공감할 수 있습니다.</p>
+    <p class="notice"><a class="text-link" href="/login">로그인</a>하면 일상을 작성하고 친구를 추가할 수 있습니다.</p>
   <% } %>
-  <section class="daily-post-list">
-    <% if (posts.length) { posts.forEach((post) => { %>
-      <article class="panel daily-post">
-        <div class="daily-post-heading"><strong><%= post.author_name %></strong><time><%= post.created_at %></time></div>
-        <p class="daily-post-content"><%= post.content %></p>
-        <div class="daily-actions">
+
+  <% if (friends.length) { %>
+    <section class="friend-section">
+      <div class="section-heading"><div><p class="eyebrow">YOUR CIRCLE</p><h2>내 친구</h2></div><span class="muted"><%= friends.length %>명</span></div>
+      <div class="friend-grid">
+        <% friends.forEach((friend) => { %>
+          <article class="friend-tile">
+            <span class="friend-avatar" aria-hidden="true"><%= (friend.name || friend.username).slice(0, 1) %></span>
+            <strong><%= friend.name || friend.username %></strong>
+            <small><%= friend.account_type === 'kakao' ? '카카오' : friend.account_type === 'google' ? 'Google' : 'IDEA VAULT' %></small>
+            <% if (currentUser) { %>
+              <form action="/ideas/feed/friends/<%= friend.id %>/remove" method="post"><button class="friend-remove" type="submit">친구 삭제</button></form>
+            <% } %>
+          </article>
+        <% }); %>
+      </div>
+    </section>
+  <% } %>
+
+  <section class="daily-feed-section">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow"><%= friends.length ? 'FRIENDS & YOU' : 'TODAY DISCOVER' %></p>
+        <h2><%= friends.length ? '친구들의 일상' : '오늘의 새로운 일상' %></h2>
+      </div>
+      <% if (!friends.length) { %><span class="muted">오늘 작성된 글과 사진</span><% } %>
+    </div>
+    <div class="daily-post-list">
+      <% if (posts.length) { posts.forEach((post) => { %>
+        <article class="panel daily-post">
+          <div class="daily-post-heading">
+            <div class="daily-author"><span class="friend-avatar small" aria-hidden="true"><%= post.author_name.slice(0, 1) %></span><strong><%= post.author_name %></strong><% if (post.is_friend) { %><span class="friend-badge">친구</span><% } %></div>
+            <time><%= post.created_at %></time>
+          </div>
+          <% if (post.content) { %><p class="daily-post-content"><%= post.content %></p><% } %>
+          <% if (post.images.length) { %>
+            <div class="daily-photo-grid <%= post.images.length === 1 ? 'single' : '' %>">
+              <% post.images.forEach((image) => { %><img src="<%= image.data_url %>" alt="일상 사진" loading="lazy"><% }); %>
+            </div>
+          <% } %>
+          <div class="daily-actions">
+            <% if (currentUser) { %>
+              <form action="/ideas/feed/<%= post.id %>/likes" method="post">
+                <button class="text-button" type="submit" aria-label="좋아요"><%= post.liked ? '♥ 공감 취소' : '♡ 공감' %> · <%= post.like_count %></button>
+              </form>
+            <% } else { %><span>♡ 공감 · <%= post.like_count %></span><% } %>
+            <span>댓글 · <%= post.comment_count %></span>
+            <% if (currentUser && currentUser._id !== post.owner_id && !post.is_friend) { %>
+              <form class="add-friend-inline" action="/ideas/feed/friends/<%= post.owner_id %>" method="post"><button class="text-button" type="submit">+ 친구 추가</button></form>
+            <% } %>
+          </div>
+          <% if (post.comments.length) { %>
+            <div class="daily-comments">
+              <% post.comments.forEach((comment) => { %><p><strong><%= comment.author_name %></strong> <%= comment.content %></p><% }); %>
+            </div>
+          <% } %>
           <% if (currentUser) { %>
-            <form action="/ideas/feed/<%= post.id %>/likes" method="post">
-              <button class="text-button" type="submit" aria-label="좋아요"><%= post.liked ? '♥ 공감 취소' : '♡ 공감' %> · <%= post.like_count %></button>
+            <form class="daily-comment-form" action="/ideas/feed/<%= post.id %>/comments" method="post">
+              <input name="content" maxlength="300" placeholder="댓글을 남겨보세요" aria-label="댓글" required>
+              <button class="button secondary" type="submit">등록</button>
             </form>
-          <% } else { %><span>♡ 공감 · <%= post.like_count %></span><% } %>
-          <span>댓글 · <%= post.comment_count %></span>
-        </div>
-        <div class="daily-comments">
-          <% post.comments.forEach((comment) => { %>
-            <p><strong><%= comment.author_name %></strong> <%= comment.content %></p>
-          <% }); %>
-        </div>
-        <% if (currentUser) { %>
-          <form class="daily-comment-form" action="/ideas/feed/<%= post.id %>/comments" method="post">
-            <input name="content" maxlength="300" placeholder="댓글을 남겨보세요" aria-label="댓글" required>
-            <button class="button secondary" type="submit">등록</button>
-          </form>
-        <% } %>
-      </article>
-    <% }); } else { %>
-      <div class="empty-state"><h3>아직 일상 글이 없습니다</h3><p>첫 번째 글을 남겨보세요.</p></div>
-    <% } %>
+          <% } %>
+        </article>
+      <% }); } else { %>
+        <div class="empty-state"><h3><%= friends.length ? '친구들의 새 일상이 아직 없어요' : '오늘 등록된 일상 글이 없습니다' %></h3><p><%= friends.length ? '친구가 글이나 사진을 올리면 이곳에 표시됩니다.' : '첫 일상을 남기거나 이름으로 사람을 찾아 친구로 추가해 보세요.' %></p></div>
+      <% } %>
+    </div>
   </section>
 </main>
+<% if (currentUser) { %><script src="/js/daily-feed.js"></script><% } %>
 <%- include('./include/_footer') %>
