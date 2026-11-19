@@ -432,6 +432,40 @@ body { background: #f7f8f5; color: #20271f; }
 .oauth-button.google .oauth-provider-icon { border: 1px solid #e5e9e2; background: white; }
 .oauth-arrow { margin-left: auto; color: #6f786d; font-size: 1rem; }
 .oauth-setup-note { margin: 10px 0 0; color: #8b9288; font-size: .71rem; line-height: 1.55; text-align: center; }
+.login-page { max-width: 1000px; grid-template-columns: 1fr 1fr; }
+.login-showcase { display: flex; flex-direction: column; min-height: 500px; }
+.login-brand { color: white; text-decoration: none; }
+.login-showcase .auth-eyebrow { margin-top: 54px; }
+.login-showcase .auth-showcase-copy { margin-bottom: 30px; }
+.login-benefits { gap: 18px; }
+.login-explore-link { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 10px; align-self: flex-start; margin-top: auto; padding-top: 32px; color: #e2efde; font-size: .85rem; font-weight: 700; text-decoration: none; }
+.login-explore-link span { transition: transform .18s ease; }
+.login-explore-link:hover span { transform: translateX(4px); }
+.login-panel { align-self: center; width: 100%; box-sizing: border-box; }
+.login-panel .auth-heading { margin-bottom: 32px; }
+.login-form { gap: 19px; }
+.login-form .auth-submit { margin-top: 3px; }
+.login-panel .oauth-options { margin-top: 27px; }
+.login-security-note { display: flex; align-items: center; justify-content: center; gap: 7px; margin: 23px 0 0; color: #8b9288; font-size: .72rem; }
+.login-security-note span { color: #59805a; font-size: .95rem; }
+@media (max-width: 800px) {
+  .login-page { max-width: 580px; grid-template-columns: 1fr; }
+  .login-showcase { min-height: 0; }
+  .login-showcase .auth-eyebrow { margin-top: 25px; }
+  .login-showcase .auth-showcase-copy { margin-bottom: 20px; }
+  .login-benefits { gap: 12px; }
+  .login-explore-link { margin-top: 22px; padding-top: 0; }
+  .login-panel { align-self: stretch; }
+}
+@media (max-width: 480px) {
+  .login-page { margin-top: 12px; }
+  .login-showcase, .login-panel { padding: 23px 20px; }
+  .login-showcase h1 { font-size: 1.8rem; }
+  .login-benefits .auth-benefit strong { font-size: .82rem; }
+  .login-benefits .auth-benefit small { font-size: .72rem; }
+  .login-panel .auth-heading { margin-bottom: 24px; }
+  .login-security-note { margin-top: 18px; font-size: .68rem; }
+}
 @media (max-width: 800px) {
   .auth-page { max-width: 580px; grid-template-columns: 1fr; }
   .auth-showcase { padding: 28px 30px; }

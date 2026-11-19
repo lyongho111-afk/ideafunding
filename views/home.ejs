@@ -1,34 +1,43 @@
-<!-- include header -->
 <%- include('./include/_header') %>
-<!-- /include header -->
-
-  <!-- Main -->
-  <main id="site-main">
-    <div class="card form-card">
-      <h2>로그인</h2>     
-      <p>에스크로 기반 아이디어 펀딩에 로그인해 주세요.</p>
-
-      <form action="/" method="POST" class="login">
-        <div class="form-group">
-          <label for="username">아이디</label>
-          <input type="text" placeholder="사용자 아이디를 입력하세요" name="username" id="username" required>
-        </div>
-        <div class="form-group">
-          <label for="password">비밀번호</label>
-          <input type="password" placeholder="비밀번호를 입력하세요" name="password" id="password" required>
-        </div>
-      
-        <button type="submit" class="login-btn">로그인</button>
-
-        <div class="form-footer">
-          아직 회원이 아니신가요? <a href="/register">회원가입</a>
-        </div>
-      </form>
-      <%- include('./include/_oauth_buttons', { oauthProviders }) %>
+<main class="auth-page login-page">
+  <aside class="auth-showcase login-showcase">
+    <a class="auth-brand-mark login-brand" href="/ideas" aria-label="IDEA VAULT 홈">IV</a>
+    <p class="auth-eyebrow">IDEA VAULT · YOUR NEXT CHAPTER</p>
+    <h1>아이디어와 일상,<br>다시 이어가 볼까요?</h1>
+    <p class="auth-showcase-copy">안전하게 보관한 아이디어를 확인하고, 새로운 가능성과 오늘의 이야기를 이어가세요.</p>
+    <div class="auth-benefits login-benefits">
+      <div class="auth-benefit">
+        <span class="benefit-number" aria-hidden="true">01</span>
+        <div><strong>내 아이디어를 안전하게</strong><small>나만의 암호화 키로 상세 내용을 보호합니다.</small></div>
+      </div>
+      <div class="auth-benefit">
+        <span class="benefit-number" aria-hidden="true">02</span>
+        <div><strong>가능성을 함께 키우기</strong><small>공개한 아이디어로 후원자와 소통하세요.</small></div>
+      </div>
     </div>
-  </main>
-  <!-- /Main -->
+    <a class="login-explore-link" href="/ideas">아이디어 둘러보기 <span aria-hidden="true">→</span></a>
+  </aside>
 
-<!-- include footer -->
+  <section class="auth-panel login-panel">
+    <div class="auth-heading">
+      <p class="eyebrow">WELCOME BACK</p>
+      <h2>다시 오신 것을 환영해요</h2>
+      <p>계정에 로그인하고 나만의 공간을 이어가세요.</p>
+    </div>
+    <form action="/" method="POST" class="auth-form login-form">
+      <div class="form-group">
+        <label for="username">아이디</label>
+        <input type="text" placeholder="아이디를 입력하세요" name="username" id="username" maxlength="40" autocomplete="username" required>
+      </div>
+      <div class="form-group">
+        <label for="password">비밀번호</label>
+        <input type="password" placeholder="비밀번호를 입력하세요" name="password" id="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="auth-submit">로그인 <span aria-hidden="true">→</span></button>
+      <p class="auth-form-footer">아직 계정이 없으신가요? <a href="/register">무료 회원가입</a></p>
+    </form>
+    <%- include('./include/_oauth_buttons', { oauthProviders }) %>
+    <p class="login-security-note"><span aria-hidden="true">⌑</span> 안전한 로그인을 위해 비밀번호를 보호하고 있어요.</p>
+  </section>
+</main>
 <%- include('./include/_footer') %>
-<!-- /include footer -->
