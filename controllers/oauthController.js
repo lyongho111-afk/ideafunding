@@ -27,7 +27,7 @@ const configs = {
     tokenEndpoint: "https://kauth.kakao.com/oauth/token",
     jwksUri: "https://kauth.kakao.com/.well-known/jwks.json",
     issuer: "https://kauth.kakao.com",
-    scope: "openid profile_nickname account_email",
+    scope: "openid profile_nickname",
   },
 };
 const jwksCache = new Map();
