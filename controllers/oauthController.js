@@ -9,7 +9,7 @@ require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 const jwtSecret = process.env.JWT_SECRET;
 if (!jwtSecret) throw new Error("JWT_SECRET을 환경 변수로 설정해 주세요.");
 
-const baseUrl = (process.env.APP_BASE_URL || "http://localhost:3000").replace(/\/+$/, "");
+const baseUrl = (process.env.APP_BASE_URL || process.env.RENDER_EXTERNAL_URL || "http://localhost:3000").replace(/\/+$/, "");
 const configs = {
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID,
@@ -154,7 +154,7 @@ const finishOAuth = (provider) => asyncHandler(async (req, res) => {
     return res.status(401).send(`${provider} 계정 확인에 실패했습니다: ${error.message}`);
   }
 
-  let user = User.findByOAuth(provider, claims.sub);
+  let user = await User.findByOAuth(provider, claims.sub);
   const profile = {
     name: typeof (claims.name || claims.nickname) === "string" ? (claims.name || claims.nickname).trim() : "",
     email: typeof claims.email === "string" && claims.email_verified !== false
@@ -164,17 +164,17 @@ const finishOAuth = (provider) => asyncHandler(async (req, res) => {
     const username = `${provider}_${crypto.createHash("sha256").update(`${provider}:${claims.sub}`).digest("hex").slice(0, 32)}`;
     const randomPassword = await bcrypt.hash(crypto.randomBytes(48).toString("base64url"), 10);
     try {
-      user = User.createOAuthAccount({
+      user = await User.createOAuthAccount({
         provider, subject: claims.sub, username, password: randomPassword, ...profile,
       });
     } catch (error) {
-      if (!String(error.code).startsWith("SQLITE_CONSTRAINT")) throw error;
-      user = User.findByOAuth(provider, claims.sub);
+      if (error.code !== "ER_DUP_ENTRY") throw error;
+      user = await User.findByOAuth(provider, claims.sub);
       if (!user) throw error;
     }
   }
-  User.updateOAuthProfile(user._id, profile);
-  user = User.findByOAuth(provider, claims.sub);
+  await User.updateOAuthProfile(user._id, profile);
+  user = await User.findByOAuth(provider, claims.sub);
 
   const token = jwt.sign({ id: user._id }, jwtSecret, { expiresIn: "1h" });
   res.cookie("token", token, {

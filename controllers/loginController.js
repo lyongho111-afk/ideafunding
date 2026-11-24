@@ -15,7 +15,7 @@ const jwtSecret = process.env.JWT_SECRET;
 // 비밀 키가 없으면 안전하지 않은 상태로 실행되지 않도록 오류를 발생시킵니다.
 if (!jwtSecret) {
   // 설정에 필요한 환경 변수 이름과 위치를 안내합니다.
-  throw new Error("JWT_SECRET을 sqlite/.env 또는 환경변수로 설정해 주세요.");
+  throw new Error("JWT_SECRET을 .env 또는 환경 변수로 설정해 주세요.");
 }
 
 /**
@@ -57,7 +57,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   // 같은 아이디의 사용자가 이미 있는지 조회합니다.
-  if (User.findOne({ username: normalizedUsername })) {
+  if (await User.findOne({ username: normalizedUsername })) {
     // 이미 사용 중인 아이디라면 409 응답을 반환합니다.
     return res.status(409).send("이미 사용 중인 아이디입니다.");
   }
@@ -65,10 +65,16 @@ const registerUser = asyncHandler(async (req, res) => {
   // 평문 비밀번호를 비용 계수 10으로 해시합니다.
   const hashedPassword = await bcrypt.hash(password, 10);
   // 해시된 비밀번호와 아이디를 새 사용자로 저장합니다.
-  const user = User.create({
-    username: normalizedUsername, password: hashedPassword, publicKey,
-    name: normalizedName, email: normalizedEmail, phone: normalizedPhone,
-  });
+  let user;
+  try {
+    user = await User.create({
+      username: normalizedUsername, password: hashedPassword, publicKey,
+      name: normalizedName, email: normalizedEmail, phone: normalizedPhone,
+    });
+  } catch (error) {
+    if (error.code === "ER_DUP_ENTRY") return res.status(409).send("이미 사용 중인 아이디입니다.");
+    throw error;
+  }
   return res.status(201).json({ message: "계정이 생성되었습니다.", username: user.username });
 });
 
@@ -91,7 +97,7 @@ const loginUser = asyncHandler(async (req, res) => {
   const { username, password } = req.body;
 
   // 아이디로 사용자 정보를 조회합니다.
-  const user = User.findOne({ username });
+  const user = await User.findOne({ username });
 
   // 사용자를 찾지 못하면 인증 실패 응답을 반환합니다.
   if (!user || user.account_type !== "local") {
@@ -146,7 +152,8 @@ const setupAdmin = asyncHandler(async (req, res) => {
     return res.status(403).send("관리자 설정 키가 올바르지 않습니다.");
   }
   const database = require("../config/dbConnect")();
-  if (database.prepare("SELECT 1 FROM users WHERE role = 'admin'").get()) {
+  const [admins] = await database.execute("SELECT 1 FROM users WHERE role = 'admin' LIMIT 1");
+  if (admins.length) {
     return res.status(409).send("관리자 계정이 이미 설정되었습니다.");
   }
   let parsedPublicKey;
@@ -162,7 +169,12 @@ const setupAdmin = asyncHandler(async (req, res) => {
     return res.status(400).send("아이디, 비밀번호 또는 공개키를 확인해 주세요.");
   }
   const hashedPassword = await bcrypt.hash(password, 10);
-  User.create({ username: normalizedUsername, password: hashedPassword, role: "admin", publicKey });
+  try {
+    await User.create({ username: normalizedUsername, password: hashedPassword, role: "admin", publicKey });
+  } catch (error) {
+    if (error.code === "ER_DUP_ENTRY") return res.status(409).send("관리자 계정 또는 아이디가 이미 설정되었습니다.");
+    throw error;
+  }
   return res.status(201).json({ message: "관리자 계정이 생성되었습니다." });
 });
 

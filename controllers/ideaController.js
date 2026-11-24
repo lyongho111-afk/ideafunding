@@ -7,28 +7,29 @@ require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 const jwtSecret = process.env.JWT_SECRET;
 const parseId = (value) => (/^[1-9]\d*$/.test(String(value)) ? Number(value) : null);
 
-const attachCurrentUser = (req, res, next) => {
+const attachCurrentUser = asyncHandler(async (req, res, next) => {
   const token = req.cookies.token;
   if (token) {
+    let decoded;
     try {
-      const decoded = jwt.verify(token, jwtSecret);
-      req.user = User.findById(decoded.id);
+      decoded = jwt.verify(token, jwtSecret);
     } catch (error) {
       res.clearCookie("token");
     }
+    if (decoded) req.user = await User.findById(decoded.id);
   }
   res.locals.currentUser = req.user || null;
   next();
-};
-
-const listIdeas = asyncHandler((req, res) => {
-  res.render("ideas", { ideas: Idea.listPublic() });
 });
 
-const newIdeaPage = asyncHandler((req, res) => {
+const listIdeas = asyncHandler(async (req, res) => {
+  res.render("ideas", { ideas: await Idea.listPublic() });
+});
+
+const newIdeaPage = asyncHandler(async (req, res) => {
   if (req.user.account_type !== "local") return res.status(403).send("아이디어 저장과 펀딩 제안은 아이디·비밀번호 계정만 이용할 수 있습니다.");
   if (!req.user.publicKey || req.user.publicKey === "admin-no-encryption") return res.redirect("/ideas/key-setup");
-  const admin = User.findAdmin();
+  const admin = await User.findAdmin();
   return res.render("idea-new", {
     publicKey: req.user.publicKey,
     adminPublicKey: admin?.publicKey || null,
@@ -40,7 +41,7 @@ const keySetupPage = asyncHandler((req, res) => {
   return res.render("key-setup");
 });
 
-const saveAccountKey = asyncHandler((req, res) => {
+const saveAccountKey = asyncHandler(async (req, res) => {
   const { publicKey } = req.body;
   let parsedKey;
   try {
@@ -51,20 +52,20 @@ const saveAccountKey = asyncHandler((req, res) => {
   if (!parsedKey || parsedKey.kty !== "RSA" || parsedKey.alg !== "RSA-OAEP-256" || publicKey.length > 5000) {
     return res.status(400).send("유효한 RSA 공개키가 아닙니다.");
   }
-  if (!User.updatePublicKeyIfUninitialized(req.user._id, publicKey)) {
+  if (!await User.updatePublicKeyIfUninitialized(req.user._id, publicKey)) {
     return res.status(409).send("이미 암호화 키가 등록되어 있습니다.");
   }
   return res.status(201).json({ message: "암호화 키가 등록되었습니다." });
 });
 
-const createIdea = asyncHandler((req, res) => {
+const createIdea = asyncHandler(async (req, res) => {
   if (req.user.account_type !== "local") return res.status(403).send("아이디어 저장과 펀딩 제안은 아이디·비밀번호 계정만 이용할 수 있습니다.");
   const { title, category, summary, fundingGoal, encryptedDetails, wrappedKey, reviewPreview, reviewWrappedKey } = req.body;
   const normalizedTitle = typeof title === "string" ? title.trim() : "";
   const normalizedCategory = typeof category === "string" ? category.trim() : "";
   const normalizedSummary = typeof summary === "string" ? summary.trim() : "";
   if (!req.user.publicKey || req.user.publicKey === "admin-no-encryption") return res.status(409).send("아이디어 등록 전에 암호화 키를 설정해 주세요.");
-  const admin = User.findAdmin();
+  const admin = await User.findAdmin();
   const storageMode = req.body.storageMode;
   if (!["funding", "private"].includes(storageMode)) return res.status(400).send("저장 방식을 선택해 주세요.");
   if (storageMode === "funding" && (!admin?.publicKey || admin.publicKey === "admin-no-encryption")) {
@@ -77,7 +78,7 @@ const createIdea = asyncHandler((req, res) => {
       (storageMode === "funding" && (!reviewPreview || reviewPreview.length > 50000 || !reviewWrappedKey || reviewWrappedKey.length > 2000))) {
     return res.status(400).send("입력 항목과 암호화된 상세 내용을 확인해 주세요.");
   }
-  Idea.create({
+  await Idea.create({
     ownerId: req.user._id,
     title: normalizedTitle,
     category: normalizedCategory,
@@ -94,33 +95,33 @@ const createIdea = asyncHandler((req, res) => {
   });
 });
 
-const myIdeas = asyncHandler((req, res) => {
-  res.render("my-ideas", { ideas: Idea.forOwner(req.user._id) });
+const myIdeas = asyncHandler(async (req, res) => {
+  res.render("my-ideas", { ideas: await Idea.forOwner(req.user._id) });
 });
 
-const ideaPage = asyncHandler((req, res) => {
+const ideaPage = asyncHandler(async (req, res) => {
   const id = parseId(req.params.id);
-  const idea = id && Idea.findById(id);
+  const idea = id && await Idea.findById(id);
   if (!idea || (idea.storage_mode !== "funding" && idea.owner_id !== req.user?._id) ||
       (idea.storage_mode === "funding" && idea.status !== "approved" && idea.owner_id !== req.user?._id)) {
     return res.status(404).send("아이디어를 찾을 수 없습니다.");
   }
   const owner = req.user?._id === idea.owner_id;
-  const pledged = req.user ? Idea.hasHeldPledge(idea.id, req.user._id) : false;
-  const disclosure = pledged && !owner ? Idea.getDisclosure(idea.id, req.user._id) : null;
+  const pledged = req.user ? await Idea.hasHeldPledge(idea.id, req.user._id) : false;
+  const disclosure = pledged && !owner ? await Idea.getDisclosure(idea.id, req.user._id) : null;
   return res.render("idea-detail", {
     idea,
     owner,
     pledged,
     disclosure,
-    backers: owner ? Idea.backers(idea.id) : [],
-    questions: owner || pledged ? Idea.questions(idea.id) : [],
+    backers: owner ? await Idea.backers(idea.id) : [],
+    questions: owner || pledged ? await Idea.questions(idea.id) : [],
   });
 });
 
-const pledge = asyncHandler((req, res) => {
+const pledge = asyncHandler(async (req, res) => {
   const id = parseId(req.params.id);
-  const idea = id && Idea.findById(id);
+  const idea = id && await Idea.findById(id);
   const amount = Number(req.body.amount);
   if (!idea || idea.status !== "approved") return res.status(404).send("공개된 아이디어를 찾을 수 없습니다.");
   if (idea.owner_id === req.user._id) return res.status(400).send("본인의 아이디어에는 후원할 수 없습니다.");
@@ -130,56 +131,56 @@ const pledge = asyncHandler((req, res) => {
     return res.status(400).send("목표 모금액의 5% 이상, 10억원 이하 금액을 입력해 주세요.");
   }
   try {
-    Idea.createPledge(idea.id, req.user._id, amount);
+    await Idea.createPledge(idea.id, req.user._id, amount);
   } catch (error) {
-    if (error.code === "SQLITE_CONSTRAINT_UNIQUE") return res.status(409).send("이미 에스크로 예약이 있습니다.");
+    if (error.code === "ER_DUP_ENTRY") return res.status(409).send("이미 에스크로 예약이 있습니다.");
     throw error;
   }
   return res.redirect(`/ideas/${idea.id}`);
 });
 
-const askQuestion = asyncHandler((req, res) => {
+const askQuestion = asyncHandler(async (req, res) => {
   const id = parseId(req.params.id);
-  const idea = id && Idea.findById(id);
+  const idea = id && await Idea.findById(id);
   const question = req.body.question?.trim();
-  if (!idea || idea.status !== "approved" || !Idea.hasHeldPledge(idea.id, req.user._id)) {
+  if (!idea || idea.status !== "approved" || !await Idea.hasHeldPledge(idea.id, req.user._id)) {
     return res.status(403).send("에스크로 예약이 확인된 후 질문할 수 있습니다.");
   }
   if (!question || question.length > 1000) return res.status(400).send("질문은 1~1,000자로 입력해 주세요.");
-  Idea.addQuestion(idea.id, req.user._id, question);
+  await Idea.addQuestion(idea.id, req.user._id, question);
   return res.redirect(`/ideas/${idea.id}`);
 });
 
-const answerQuestion = asyncHandler((req, res) => {
+const answerQuestion = asyncHandler(async (req, res) => {
   const ideaId = parseId(req.params.id);
   const questionId = parseId(req.params.questionId);
   const answer = req.body.answer?.trim();
   if (!ideaId || !questionId || !answer || answer.length > 2000) return res.status(400).send("답변을 확인해 주세요.");
-  if (!Idea.answerQuestion(questionId, req.user._id, answer)) return res.status(404).send("답변할 질문을 찾을 수 없습니다.");
+  if (!await Idea.answerQuestion(questionId, req.user._id, answer)) return res.status(404).send("답변할 질문을 찾을 수 없습니다.");
   return res.redirect(`/ideas/${ideaId}`);
 });
 
-const disclose = asyncHandler((req, res) => {
+const disclose = asyncHandler(async (req, res) => {
   const id = parseId(req.params.id);
   const backerId = parseId(req.params.backerId);
-  const idea = id && Idea.findById(id);
-  const backer = backerId && Idea.backers(id).find((item) => item.backer_id === backerId);
+  const idea = id && await Idea.findById(id);
+  const backer = backerId && (await Idea.backers(id)).find((item) => item.backer_id === backerId);
   const { encryptedDetails, wrappedKey } = req.body;
   if (!idea || idea.owner_id !== req.user._id) return res.status(404).send("아이디어를 찾을 수 없습니다.");
   if (!backer || !encryptedDetails || !wrappedKey) return res.status(400).send("에스크로 예약 또는 공개할 내용을 확인해 주세요.");
-  Idea.saveDisclosure(id, backerId, encryptedDetails, wrappedKey);
+  await Idea.saveDisclosure(id, backerId, encryptedDetails, wrappedKey);
   return res.status(201).json({ message: "상세 내용을 암호화해 공개했습니다." });
 });
 
-const adminDashboard = asyncHandler((req, res) => {
+const adminDashboard = asyncHandler(async (req, res) => {
   if (!req.user.publicKey || req.user.publicKey === "admin-no-encryption") return res.redirect("/ideas/key-setup");
-  return res.render("admin", { ideas: Idea.pending() });
+  return res.render("admin", { ideas: await Idea.pending() });
 });
 
-const reviewIdea = asyncHandler((req, res) => {
+const reviewIdea = asyncHandler(async (req, res) => {
   const id = parseId(req.params.id);
   const { decision } = req.body;
-  const idea = id && Idea.findById(id);
+  const idea = id && await Idea.findById(id);
   const goal = Number(req.body.fundingGoal);
   if (!idea || idea.status !== "pending") return res.status(404).send("검수 대기 중인 아이디어를 찾을 수 없습니다.");
   if (decision === "approved" && (!idea.review_preview || !idea.review_wrapped_key)) {
@@ -191,7 +192,7 @@ const reviewIdea = asyncHandler((req, res) => {
   if (!["approved", "rejected"].includes(decision) || !Number.isSafeInteger(goal) || goal < idea.funding_goal || goal > 1000000000) {
     return res.status(400).send("게시 결정 또는 상향된 모금 목표를 확인해 주세요.");
   }
-  Idea.review(id, decision, goal);
+  await Idea.review(id, decision, goal);
   return res.redirect("/ideas/admin");
 });
 

@@ -1,6 +1,6 @@
 // Express 웹 프레임워크를 불러옵니다.
 const express = require("express");
-// SQLite 데이터베이스 연결 모듈을 불러옵니다.
+// MySQL 데이터베이스 연결 모듈을 불러옵니다.
 const dbConnect = require("./config/dbConnect");
 // HTML 폼의 HTTP 메서드 재정의를 처리하는 모듈을 불러옵니다.
 const methodOverride = require("method-override");
@@ -13,7 +13,7 @@ const path = require("node:path");
 const app = express();
 
 // 서버가 요청을 받을 포트 번호를 지정합니다.
-const port = 3000;
+const port = Number(process.env.PORT) || 3000;
 
 // public 폴더의 파일(CSS, 이미지 등)을 정적 파일로 제공합니다.
 app.use(express.static(path.join(__dirname, "public")));
@@ -25,8 +25,6 @@ app.set("view engine", "ejs");
 // EJS 템플릿이 저장된 폴더의 경로를 설정합니다.
 app.set("views", path.join(__dirname, "views"));
 
-// 애플리케이션에서 사용할 데이터베이스를 초기화합니다.
-dbConnect();
 // 요청의 쿠키를 분석하는 미들웨어를 등록합니다.
 app.use(cookieParser());
 
@@ -40,10 +38,12 @@ app.use("/", require("./routes/loginRoutes"));
 app.use("/auth", require("./routes/oauthRoutes"));
 app.use("/ideas", require("./routes/ideaRoutes"));
 
-// 지정한 포트에서 서버를 시작합니다.
-app.listen(port, '0.0.0.0', () => {
-  // 서버가 실행되었음을 포트 번호와 함께 터미널에 출력합니다.
-  console.log(`${port}번 포트에서 서버 실행 중`);
+dbConnect.initializeDatabase().then(() => {
+  app.listen(port, "0.0.0.0", () => {
+    console.log(`${port}번 포트에서 서버 실행 중`);
+  });
+}).catch((error) => {
+  console.error("MySQL 데이터베이스 초기화에 실패했습니다.", error);
+  process.exitCode = 1;
 });
-const PORT = process.env.PORT || 3000;
 
